@@ -1,23 +1,43 @@
-// TODO
-// lib.rs
-// print_on_file (idk)
-// add figlet banner
-// Cargo.toml
-
-use rand::Rng;
-use std::io;
 use colored::Colorize;
+use rand::Rng;
+use std::{
+    env,
+    fs::OpenOptions,
+    io::{self, Write}
+};
 
-const ASK_TYPES: [&str; 6] = [
+const ASK_TYPES: [&str; 5] = [
     "lowercase letters",
     "capital letters",
     "numbers",
-    "spaces",
     "special characters",
     "other characters"
 ];
 
 fn main() {
+    // TODO print exe if on windows, not if otherwise
+    let file_name = match env::args().nth(1) {
+        Some(arg) => arg,
+        None => return eprintln!("{}\n\n{}{}{}\n",
+        "Didn't get any file to write into!".red(),
+        "Tip: execute the program like that: ".green(),
+        "rng_passgen.exe ",
+        "file_name.txt".yellow().italic()
+    )
+    };
+    println!("{}", format!(
+" ____  _   _  ____                                             {}
+|  _ \\| \\ | |/ ___|  _ __   __ _ ___ ___  __ _  ___ _ __       {}
+| |_) |  \\| | |  _  | '_ \\ / _` / __/ __|/ _` |/ _ \\ '_ \\
+|  _ <| |\\  | |_| | | |_) | (_| \\__ \\__ \\ (_| |  __/ | | |     {}hiimsergey/rng-passgen-rs
+|_| \\_\\_| \\_|\\____| | .__/ \\__,_|___/___/\\__, |\\___|_| |_|
+                    |_|                  |___/
+",
+"rng-passgen-rs".white().bold(),
+"a kinda useless problem".white().italic(),
+"github.com/".white()
+).magenta());
+
     let mut symbols = Vec::<String>::new();
 
     for ask_type in ASK_TYPES {
@@ -33,31 +53,16 @@ fn main() {
             );
 
         match answer.trim() {
-            x if ask_type == "other characters"
-                => {
+            x if ask_type == "other characters" => {
                     for _ in 0..(match symbols.len() {
                         0 => 1,
                         _ => symbols.len()
-                    }) {
-                        symbols.extend(x
-                            .chars()
-                            .map(String::from)
-                            .collect::<Vec<String>>()
-                        )
-                    }
+                    }) { symbols.extend(get_symbols(x)); }
                 },
-                // => symbols.extend(x // TODO mv to get_symbols
-                //     .chars()
-                //     .map(String::from)
-                //     .collect::<Vec<String>>()),
-            "" if ask_type == "other characters"
-                => {},
-            "y" | "Y" | ""
-                => symbols.extend(get_symbols(ask_type)),
+            "" if ask_type == "other characters" => {},
+            "y" | "Y" | "" => symbols.extend(get_symbols(ask_type)),
             "n" | "N" => {},
-            _ => {
-                println!("{}", "Invalid choice!".red()); // TODO how to reask the question?
-            },
+            _ => { println!("{}", "Invalid choice!".red()); }, // TODO how to reask the question?
         }
     }
 
@@ -68,63 +73,79 @@ fn main() {
     }
 
     let password = gen_password(&symbols, ask_length());
-    for c in &password { print!("{}", c.blue()); }
-    println!();
 
-    // TODO NEXT
-    // ask for additional information
-    // write password to disk
+    println!("{}\n{}",
+        format!(
+            "Do you want {} printed?",
+            "additional information".cyan()
+        ).bold(),
+        "Just type whatever you need below or leave blank to skip:".italic()
+    );
+    let mut answer = String::new();
+    io::stdin()
+        .read_line(&mut answer)
+        .expect(
+            format!("{}",
+            "Failed to get answer!".red())
+                .as_str()
+        );
+
+    // TODO make it create files if not there
+    // TODO error handle this (Result)
+    let mut file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(file_name)
+        .unwrap();
+
+    if answer.trim() != "" {
+        write!(file, "{} ", answer.trim());
+    }
+    // TODO make it print different password
+    // TODO fundamentally change the program so at first, the settings get constructed (lib.rs)
+    for _ in 1..=password_number() {
+        for c in &password { write!(file, "{c}"); }
+        writeln!(file);
+    }
 }
 
-// TODO DOC Prints the yes/no question depending on the ASK_TYPE
 fn print_dialogue(ask_type: &str) {
-    print!("{}", format!("Do you want to include {}?", ask_type.cyan()).bold());
-
-    match ask_type {
-        "special characters" => println!("{}{}",
-            format!(
-                " [{}/{}]",
-                "Y".green(),
-                "n".red()
-            ).bold(),
-            format!("\n{}{}",
-                "These: ".italic(),
-                "!  \"  #  $  %  &  '  (  )  *  +  ,  -  .  /".yellow()
-            )
-        ),
-        "spaces" => println!("{}{}",
-            format!(
-                " [{}/{}]",
-                "Y".green(),
-                "n".red()
-            ).bold(),
-            format!("\n{}",
-                "You madlad!".italic()
-            )
-        ),
-        "other characters" => println!("\n{}",
-            "Type them below (one after another) or leave blank to skip:".italic()
-        ),
-        _ => println!("{}",
-            format!(
-                " [{}/{}]",
+    print!("{}",
+        format!(
+            "Do you want to include {}?",
+            ask_type.cyan()
+        ).bold()
+    );
+    if ask_type != "other characters" {
+        println!(" {}",
+            format!("[{}/{}]",
                 "Y".green(),
                 "n".red()
             ).bold()
-        )
+        );
+    } else {
+        print!("\n");
+    }
+
+    match ask_type {
+        "special characters" => println!("{}{}",
+            "These: ".italic(),
+            "!  \"  #  $  %  &  '  (  )  *  +  ,  -  .  /".yellow()
+        ),
+        "other characters" => println!("{}",
+            "Type them below (one after another) or leave blank to skip:".italic()
+        ),
+        _ => {}
     }
 }
 
-// TODO DOC Returns a vector of all the symbols corresponding to the chosen ASK_TYPE
 fn get_symbols(ask_type: &str) -> Vec<String> {
-    if ask_type == "spaces" {
-        return vec![String::from(" ")]
-    }
     match ask_type {
-        "lowercase letters" => 'a'..='z',
-        "capital letters"   => 'A'..='Z',
-        "numbers"           => '0'..='9',
-        _                   => '!'..='/'
+        "lowercase letters"  => 'a'..='z',
+        "capital letters"    => 'A'..='Z',
+        "numbers"            => '0'..='9',
+        "special characters" => '!'..='/',
+        x                    => return x.chars().map(String::from).collect::<Vec<String>>()
     }.map(|c| c.to_string()).collect::<Vec<_>>()
 }
 
@@ -187,6 +208,35 @@ fn gen_password(symbols: &Vec<String>, pass_len: u8) -> Vec<&str> {
                 println!("{}", "Invalid choice!".red());
                 continue;
             }
+        }
+    }
+}
+
+fn password_number() -> u8 {
+    println!("{}",
+        format!(
+            "{} passwords to generate? [{}/{}]",
+            "How many".cyan(),
+            "1".green(),
+            "number".red().italic()
+        )
+    );
+
+    let mut answer = String::new();
+    io::stdin()
+        .read_line(&mut answer)
+        .expect(
+            format!("{}",
+            "Failed to get answer!".red())
+                .as_str()
+        );
+
+    if answer.trim() == "" { return 1 }
+    match answer.trim().parse::<u8>() {
+        Ok(n) => n,
+        Err(_) => {
+            println!("{}", "Invalid number!".red());
+            password_number()
         }
     }
 }
