@@ -1,4 +1,8 @@
 # passtime-rs
+A lil' Rust program that output randomly generated passwords according to your flags.
+
+Then, you can redirect the output into a file or pipe it.
+
 ```
 A CLI-based password generator
 
