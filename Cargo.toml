@@ -1,0 +1,13 @@
+[package]
+name = "passtime"
+description = "A CLI-based password generator"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+colored = "2.0.4"
+fastrand = "2.0.1"
+
+[dependencies.clap]
+version = "4.4.4"
+features = ["derive"]
